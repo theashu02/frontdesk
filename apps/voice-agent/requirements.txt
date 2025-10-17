@@ -1,0 +1,8 @@
+httpx==0.27.2
+livekit-agents==1.2.15
+livekit-plugins-cartesia==1.2.15
+livekit-plugins-deepgram==1.2.15
+livekit-plugins-openai==1.2.15
+livekit-plugins-silero==1.2.15
+livekit-plugins-turn-detector==1.2.15
+python-dotenv==1.0.1
