@@ -58,39 +58,55 @@ export function Dashboard() {
     });
   }, []);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [pendingRes, historyRes, kbRes] = await Promise.all([
-        fetch("/api/help-requests?status=pending"),
-        fetch("/api/help-requests?status=all"),
-        fetch("/api/knowledge-base"),
-      ]);
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+      if (!silent) {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        const [pendingRes, historyRes, kbRes] = await Promise.all([
+          fetch("/api/help-requests?status=pending"),
+          fetch("/api/help-requests?status=all"),
+          fetch("/api/knowledge-base"),
+        ]);
 
-      if (!pendingRes.ok) throw new Error("Failed to load pending help requests");
-      if (!historyRes.ok) throw new Error("Failed to load help request history");
-      if (!kbRes.ok) throw new Error("Failed to load knowledge base");
+        if (!pendingRes.ok) throw new Error("Failed to load pending help requests");
+        if (!historyRes.ok) throw new Error("Failed to load help request history");
+        if (!kbRes.ok) throw new Error("Failed to load knowledge base");
 
-      const pendingData = (await pendingRes.json()) as HelpRequest[];
-      const historyData = ((await historyRes.json()) as HelpRequest[]).filter(
-        (item) => item.status !== "pending",
-      );
-      const kbData = (await kbRes.json()) as KnowledgeEntry[];
+        const pendingData = (await pendingRes.json()) as HelpRequest[];
+        const historyData = ((await historyRes.json()) as HelpRequest[]).filter(
+          (item) => item.status !== "pending",
+        );
+        const kbData = (await kbRes.json()) as KnowledgeEntry[];
 
-      setPending(pendingData);
-      setHistory(historyData);
-      setKnowledgeBase(kbData);
-    } catch (err) {
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Failed to load data");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        setPending(pendingData);
+        setHistory(historyData);
+        setKnowledgeBase(kbData);
+      } catch (err) {
+        console.error(err);
+        setError(err instanceof Error ? err.message : "Failed to load data");
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     void refresh();
+  }, [refresh]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void refresh({ silent: true });
+    }, 5000);
+
+    return () => window.clearInterval(interval);
   }, [refresh]);
 
   const handleResolve = useCallback(
