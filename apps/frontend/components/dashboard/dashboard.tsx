@@ -179,6 +179,16 @@ export function Dashboard() {
     [knowledgeBase],
   );
 
+  const learnedEntries = useMemo(
+    () => sortedKnowledge.filter((entry) => entry.source && entry.source !== "seed"),
+    [sortedKnowledge],
+  );
+
+  const seedEntries = useMemo(
+    () => sortedKnowledge.filter((entry) => !entry.source || entry.source === "seed"),
+    [sortedKnowledge],
+  );
+
   return (
     <div className="space-y-6">
       <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -339,7 +349,7 @@ export function Dashboard() {
                   key={item.id}
                   className="rounded-xl border border-border bg-card p-4 text-sm shadow-sm"
                 >
-                  <header className="flex items-center justify-between">
+                  <header className="flex flex-wrap items-center justify-between gap-2">
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                         item.status === "resolved"
@@ -349,8 +359,8 @@ export function Dashboard() {
                     >
                       {item.status.toUpperCase()}
                     </span>
-                    <span className="text-muted-foreground">
-                      {new Date(item.updatedAt).toLocaleString()}
+                    <span className="text-xs text-muted-foreground">
+                      Updated {formatTimestamp(item.updatedAt)}
                     </span>
                   </header>
                   <p className="mt-2 font-medium">{item.question}</p>
@@ -367,40 +377,27 @@ export function Dashboard() {
                       Notes: {item.supervisorNotes}
                     </p>
                   ) : null}
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {item.status === "resolved"
+                      ? `Responded ${formatTimestamp(item.respondedAt ?? item.resolvedAt)}`
+                      : `Timed out ${formatTimestamp(item.timedOutAt ?? item.updatedAt)}`}
+                  </p>
                 </article>
               ))
             )}
           </div>
 
-          <h2 className="pt-4 text-lg font-semibold">Knowledge base</h2>
-          <div className="max-h-[400px] space-y-3 overflow-y-auto pr-1">
-            {sortedKnowledge.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-                No entries yet.
-              </p>
-            ) : (
-              sortedKnowledge.map((entry) => (
-                <article
-                  key={entry.id}
-                  className="rounded-xl border border-border bg-card p-4 text-sm shadow-sm"
-                >
-                  <h3 className="font-semibold">{entry.question}</h3>
-                  <p className="mt-1 text-muted-foreground">{entry.answer}</p>
-                  <footer className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                    <span>{new Date(entry.updatedAt).toLocaleString()}</span>
-                    {entry.tags?.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-muted px-2 py-0.5 text-xs"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </footer>
-                </article>
-              ))
-            )}
-          </div>
+          <h2 className="pt-4 text-lg font-semibold">Learned answers</h2>
+          <KnowledgePanel
+            entries={learnedEntries}
+            emptyLabel="No learned answers yet. Supervisor-approved replies will show up here."
+          />
+
+          <h2 className="pt-6 text-lg font-semibold">Seed knowledge</h2>
+          <KnowledgePanel
+            entries={seedEntries}
+            emptyLabel="No seed entries found."
+          />
         </div>
       </section>
     </div>
@@ -414,4 +411,54 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
       <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>
   );
+}
+
+function KnowledgePanel({
+  entries,
+  emptyLabel,
+}: {
+  entries: KnowledgeEntry[];
+  emptyLabel: string;
+}) {
+  if (entries.length === 0) {
+    return (
+      <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
+        {emptyLabel}
+      </p>
+    );
+  }
+
+  return (
+    <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
+      {entries.map((entry) => (
+        <article
+          key={entry.id}
+          className="rounded-xl border border-border bg-card p-4 text-sm shadow-sm"
+        >
+          <h3 className="font-semibold">{entry.question}</h3>
+          <p className="mt-1 text-muted-foreground">{entry.answer}</p>
+          <footer className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span>{formatTimestamp(entry.updatedAt)}</span>
+            {entry.source && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                {entry.source}
+              </span>
+            )}
+            {entry.tags?.map((tag) => (
+              <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                #{tag}
+              </span>
+            ))}
+          </footer>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function formatTimestamp(value?: string) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString();
 }

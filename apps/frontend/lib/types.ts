@@ -14,6 +14,7 @@ export interface HelpRequest {
   supervisorNotes?: string;
   resolvedAt?: string;
   respondedAt?: string;
+  timedOutAt?: string;
 }
 
 export interface KnowledgeEntry {

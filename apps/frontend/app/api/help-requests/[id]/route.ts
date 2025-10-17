@@ -6,14 +6,15 @@ import {
   updateHelpRequest,
 } from "@/lib/store";
 
-interface RouteContext {
-  params: {
+type RouteContext = {
+  params: Promise<{
     id: string;
-  };
-}
+  }>;
+};
 
 export async function GET(_request: Request, context: RouteContext) {
-  const item = await getHelpRequest(context.params.id);
+  const { id } = await context.params;
+  const item = await getHelpRequest(id);
   if (!item) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -23,7 +24,7 @@ export async function GET(_request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     const body = await request.json();
-    const id = context.params.id;
+    const { id } = await context.params;
 
     if (!id) {
       return NextResponse.json({ error: "Missing id" }, { status: 400 });

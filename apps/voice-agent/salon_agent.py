@@ -1,8 +1,9 @@
+import asyncio
 import json
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, Optional
 
 import httpx
@@ -22,9 +23,9 @@ load_dotenv()
 
 
 SALON_PROFILE = {
-    "name": "Radiance Salon",
-    "tagline": "a boutique hair and spa studio in downtown Kanpur",
-    "address": "Z square Near Mall Road Kanpur 208001",
+    "name": "Aurora Glow Salon",
+    "tagline": "a boutique hair and spa studio in downtown Denver",
+    "address": "123 Market Street, Denver, CO 80202",
     "parking": "Validated parking in the Market Street Garage across the street.",
     "contact": "+1 (303) 555-0188",
     "hours": {
@@ -54,7 +55,7 @@ SALON_FAQ = [
         "id": "location",
         "question": "Where are you located?",
         "answer": (
-            "Radiance salon i "
+            "Aurora Glow Salon is at 123 Market Street in downtown Denver. "
             "We validate parking for the Market Street Garage right across from our entrance."
         ),
         "keywords": {"where", "location", "address", "parking", "directions"},
@@ -149,12 +150,40 @@ class SalonKnowledgeBase:
 knowledge_base = SalonKnowledgeBase(SALON_FAQ)
 
 
+async def _search_backend_knowledge(question: str, limit: int = 3) -> list[dict]:
+    backend_base_url = os.getenv("BACKEND_BASE_URL")
+    if not backend_base_url:
+        return []
+
+    url = backend_base_url.rstrip("/") + "/api/knowledge-base"
+    params = {"q": question, "limit": str(limit)}
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(8.0, connect=3.0)) as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, list):
+                return data
+    except httpx.HTTPError as exc:
+        logger.warning("Knowledge base lookup failed: %s", exc)
+    return []
+
+
+async def _lookup_remote_knowledge(question: str) -> Optional[dict]:
+    candidates = await _search_backend_knowledge(question)
+    if not candidates:
+        return None
+    return candidates[0]
+
+
 @dataclass
 class SalonUserData:
     caller_name: Optional[str] = None
     caller_phone: Optional[str] = None
     pending_help_request_id: Optional[str] = None
     last_escalation_payload: Optional[dict] = None
+    followup_task: Optional[asyncio.Task] = field(default=None, repr=False)
 
 
 RunContext_T = RunContext[SalonUserData]
@@ -192,6 +221,20 @@ async def lookup_salon_info(
     context: RunContext_T,
 ) -> dict:
     """Look up the salon knowledge base for the caller's request."""
+    remote_entry = await _lookup_remote_knowledge(question)
+    if remote_entry:
+        logger.info(
+            "lookup_salon_info | remote match | question=%s | entry_id=%s",
+            question,
+            remote_entry.get("id"),
+        )
+        return {
+            "match": True,
+            "confidence": 10.0,
+            "faqId": remote_entry.get("id"),
+            "answer": remote_entry.get("answer"),
+        }
+
     entry, score = knowledge_base.match(question)
     response = {
         "match": False,
@@ -247,6 +290,91 @@ async def _post_help_request(question: str, context: RunContext_T) -> dict:
     }
 
 
+async def _speak_followup(session: AgentSession[SalonUserData], message: str) -> None:
+    try:
+        await session.generate_reply(
+            instructions=f"Immediately say to the caller: {message}",
+            allow_interruptions=True,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to deliver follow-up to caller: %s", exc)
+
+
+async def _poll_help_request_resolution(
+    session: AgentSession[SalonUserData],
+    userdata: SalonUserData,
+    request_id: str,
+) -> None:
+    backend_base_url = os.getenv("BACKEND_BASE_URL")
+    if not backend_base_url:
+        logger.warning("BACKEND_BASE_URL not configured; cannot poll help request resolution.")
+        userdata.pending_help_request_id = None
+        userdata.followup_task = None
+        return
+
+    poll_interval = float(os.getenv("HELP_REQUEST_POLL_INTERVAL", "5"))
+    max_wait = float(os.getenv("HELP_REQUEST_POLL_TIMEOUT", "180"))
+    url = backend_base_url.rstrip("/") + f"/api/help-requests/{request_id}"
+    elapsed = 0.0
+
+    logger.info("Starting follow-up poll for help request %s", request_id)
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+            while elapsed < max_wait:
+                await asyncio.sleep(poll_interval)
+                elapsed += poll_interval
+
+                try:
+                    response = await client.get(url)
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code == 404:
+                        logger.warning("Help request %s no longer exists.", request_id)
+                        break
+                    logger.warning("Polling request %s failed: %s", request_id, exc)
+                    continue
+                except httpx.HTTPError as exc:
+                    logger.warning("Polling request %s encountered error: %s", request_id, exc)
+                    continue
+
+                data = response.json()
+                status = data.get("status")
+                if status == "resolved":
+                    answer = data.get("answer")
+                    if answer:
+                        await _speak_followup(
+                            session,
+                            f"Thanks for waiting. My supervisor says: {answer}",
+                        )
+                    else:
+                        await _speak_followup(
+                            session,
+                            "Thanks for waiting. My supervisor will follow up with the details shortly.",
+                        )
+                    return
+
+                if status == "timeout":
+                    await _speak_followup(
+                        session,
+                        "Thanks for holding. My supervisor is still checking and will reach back out shortly.",
+                    )
+                    return
+
+            await _speak_followup(
+                session,
+                "I appreciate your patience. My supervisor will reach back out with the answer as soon as they have it.",
+            )
+    except asyncio.CancelledError:
+        logger.info("Cancelled follow-up poll for help request %s", request_id)
+        raise
+    finally:
+        userdata.pending_help_request_id = None
+        userdata.last_escalation_payload = None
+        userdata.followup_task = None
+        logger.info("Finished follow-up poll for help request %s", request_id)
+
+
 @function_tool()
 async def request_human_help(
     question: Annotated[str, Field(description="The question that could not be answered from the knowledge base.")],
@@ -264,11 +392,24 @@ async def request_human_help(
             "duplicate": True,
         }
 
+    if context.userdata.followup_task and not context.userdata.followup_task.done():
+        context.userdata.followup_task.cancel()
+
     result = await _post_help_request(question, context)
 
     if result.get("escalated"):
-        context.userdata.pending_help_request_id = result.get("requestId")
+        request_id = result.get("requestId")
         context.userdata.last_escalation_payload = result
+        if request_id:
+            context.userdata.pending_help_request_id = str(request_id)
+            session = context.session
+            if isinstance(session, AgentSession):
+                task = asyncio.create_task(
+                    _poll_help_request_resolution(session, context.userdata, str(request_id)),
+                )
+                context.userdata.followup_task = task
+        else:
+            context.userdata.pending_help_request_id = None
 
     return result
 
@@ -285,7 +426,8 @@ def build_agent_instructions() -> str:
         "and say verbatim: \"Let me check with my supervisor and get back to you.\"\n"
         "4. Offer to capture the caller's name or callback number when it helps using the `update_caller_name` "
         "and `update_caller_phone` tools.\n"
-        "5. Never guess. Escalate whenever you are unsure or the caller requests a human.\n"
+        "5. When your supervisor shares an answer, thank the caller and relay it immediately (the system will provide the message).\n"
+        "6. Never guess. Escalate whenever you are unsure or the caller requests a human.\n"
         "\n"
         "Salon knowledge for quick reference:\n"
         f"{knowledge_base.instructions_fragment()}\n"

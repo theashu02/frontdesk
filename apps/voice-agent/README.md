@@ -41,13 +41,15 @@ Key settings expected in `.env`:
 | `DEEPGRAM_API_KEY` / `DEEPGRAM_MODEL` | Speech-to-text transcription. |
 | `CARTESIA_API_KEY` / `CARTESIA_VOICE_ID` | Voice for spoken responses. |
 | `BACKEND_BASE_URL` | Base URL of the Next.js API (needed for help-request escalations). |
+| `HELP_REQUEST_POLL_INTERVAL` | Seconds between supervisor status checks (default `5`). |
+| `HELP_REQUEST_POLL_TIMEOUT` | Max seconds to wait before sending a fallback update (default `180`). |
 | `AUTO_GREETING` | When `true`, send an initial greeting even if the call is already underway. |
 
 ## How the agent works
 
 - The receptionist is prompted with Aurora Glow Salon's business profile and FAQs.
-- Every caller question is sent through the `lookup_salon_info` tool. If a confident match is found, the answer is read back to the caller.
-- When no answer is available, the agent triggers `request_human_help`, which POSTs to `/api/help-requests` on the frontend. The supervisor dashboard will then show the pending request.
+- Every caller question is sent through the `lookup_salon_info` tool. Learned answers stored by the supervisor UI are fetched via `/api/knowledge-base`, so the agent stays up to date without redeploying.
+- When no answer is available, the agent triggers `request_human_help`, which POSTs to `/api/help-requests` on the frontend, logs a supervisor ping, and starts polling for the resolution. As soon as a supervisor responds, the agent thanks the caller and relays the answer automatically.
 - Optional tools let the agent remember the caller's name and callback number, which are passed along in the help-request payload.
 
 You can expand the FAQ list in `salon_agent.py` or replace the lookup logic with API calls or vector search as needed.

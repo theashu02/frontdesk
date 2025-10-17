@@ -174,6 +174,7 @@ export async function updateHelpRequest(
   if (input.action === "timeout") {
     request.status = "timeout";
     request.updatedAt = now;
+    request.timedOutAt = now;
   } else {
     request.status = "resolved";
     request.answer = input.answer?.trim();
@@ -181,6 +182,7 @@ export async function updateHelpRequest(
     request.supervisorNotes = input.supervisorNotes?.trim() || undefined;
     request.resolvedAt = now;
     request.updatedAt = now;
+    request.respondedAt = now;
     const destination = request.customerPhone ?? "(unknown number)";
     const message =
       request.answer ??
