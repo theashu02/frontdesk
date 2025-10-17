@@ -71,14 +71,14 @@ python salon_agent.py download-files   # pulls turn detector model
 python salon_agent.py dev              # starts the dev worker (auto-reloads)
 ```
 
-The agent joins the LiveKit room defined in `.env`. It queries the Next.js APIs for knowledge lookups and escalations. While running in `dev` mode, the CLI will watch the directory for changes and reload automatically.
+The agent joins the LiveKit room defined in `.env`. Every caller question is matched against the built-in Aurora Glow Salon FAQ before responding. If no answer is found, the agent escalates to the supervisor dashboard. While running in `dev` mode, the CLI watches for file changes and reloads automatically.
 
 ### Escalation workflow
 
 1. Caller asks a question.
-2. Agent invokes `lookup_knowledge_base` (calls `GET /api/knowledge-base`).
-3. If nothing matches, it calls `POST /api/help-requests` to escalate and polls the specific request until a supervisor responds or 120 seconds pass.
-4. When a supervisor resolves the request in the dashboard, the API marks it resolved, saves the answer to the knowledge base, and the agent relays the response (or promises a follow-up if the caller has already hung up).
+2. Agent invokes the `lookup_salon_info` tool to score the question against salon FAQs bundled in `salon_agent.py`.
+3. If a confident match is found, the answer is delivered immediately. Otherwise, the agent triggers `request_human_help`, which `POST`s to `/api/help-requests`.
+4. Supervisors can reply from the dashboard. The agent notifies the caller that a human will follow up (and the payload includes the caller's name/phone when collected).
 
 ---
 
