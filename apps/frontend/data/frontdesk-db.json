@@ -1,0 +1,85 @@
+{
+  "knowledgeBase": [
+    {
+      "id": "hours",
+      "question": "What are your business hours?",
+      "answer": "Aurora Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
+      "tags": [
+        "schedule",
+        "hours"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
+    },
+    {
+      "id": "location",
+      "question": "Where is the salon located?",
+      "answer": "We are located at 123 Market Street, Denver, CO 80202. Validated parking is available in the Market Street Garage across the street.",
+      "tags": [
+        "location",
+        "parking"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
+    },
+    {
+      "id": "services",
+      "question": "What services do you provide?",
+      "answer": "Our menu includes signature haircuts, balayage color, restorative conditioning treatments, and the Glow & Go package (cut, gloss, and blowout).",
+      "tags": [
+        "services"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
+    },
+    {
+      "id": "pricing",
+      "question": "What are your prices like?",
+      "answer": "Haircuts start at $85, specialty color from $185, and the Glow & Go package is $230. Quotes are confirmed before each appointment begins.",
+      "tags": [
+        "pricing"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
+    },
+    {
+      "id": "cancellation",
+      "question": "What is the cancellation policy?",
+      "answer": "Please provide 24 hours notice to cancel or reschedule. Late cancellations or no-shows incur a $50 fee.",
+      "tags": [
+        "policies"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
+    },
+    {
+      "id": "151f8500-ca38-4a8b-8618-57e5d09ba0ca",
+      "question": "What is your background name?",
+      "answer": "ashu",
+      "source": "supervisor",
+      "createdAt": "2025-10-17T20:54:05.199Z",
+      "updatedAt": "2025-10-17T20:54:05.199Z"
+    }
+  ],
+  "helpRequests": [
+    {
+      "id": "875eabae-8975-43db-a852-5c069da7c1ea",
+      "question": "What is your background name?",
+      "customerName": "Ashu",
+      "customerPhone": "Zero five one two",
+      "channel": "livekit",
+      "status": "resolved",
+      "createdAt": "2025-10-17T20:53:27.663Z",
+      "updatedAt": "2025-10-17T20:54:05.178Z",
+      "answer": "ashu",
+      "supervisorName": "omen",
+      "supervisorNotes": "#answer",
+      "resolvedAt": "2025-10-17T20:54:05.178Z"
+    }
+  ]
+}

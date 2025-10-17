@@ -22,9 +22,9 @@ load_dotenv()
 
 
 SALON_PROFILE = {
-    "name": "Aurora Glow Salon",
-    "tagline": "a boutique hair and spa studio in downtown Denver",
-    "address": "123 Market Street, Denver, CO 80202",
+    "name": "Radiance Salon",
+    "tagline": "a boutique hair and spa studio in downtown Kanpur",
+    "address": "Z square Near Mall Road Kanpur 208001",
     "parking": "Validated parking in the Market Street Garage across the street.",
     "contact": "+1 (303) 555-0188",
     "hours": {
@@ -54,7 +54,7 @@ SALON_FAQ = [
         "id": "location",
         "question": "Where are you located?",
         "answer": (
-            "Aurora Glow Salon is at 123 Market Street in downtown Denver. "
+            "Radiance salon i "
             "We validate parking for the Market Street Garage right across from our entrance."
         ),
         "keywords": {"where", "location", "address", "parking", "directions"},
@@ -282,7 +282,7 @@ def build_agent_instructions() -> str:
         "1. Always call the `lookup_salon_info` tool with the caller's exact question before you answer.\n"
         "2. If the lookup result returns `match: true`, respond using `answer` and add any helpful detail from the profile.\n"
         "3. If the lookup result returns `match: false`, apologize briefly, call `request_human_help`, "
-        "and tell the caller a supervisor will follow up soon.\n"
+        "and say verbatim: \"Let me check with my supervisor and get back to you.\"\n"
         "4. Offer to capture the caller's name or callback number when it helps using the `update_caller_name` "
         "and `update_caller_phone` tools.\n"
         "5. Never guess. Escalate whenever you are unsure or the caller requests a human.\n"
