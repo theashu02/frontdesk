@@ -25,7 +25,7 @@ const DEFAULT_DB: FrontdeskDatabase = {
       id: "hours",
       question: "What are your business hours?",
       answer:
-        "Aurora Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
+        "Radiance Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
       tags: ["schedule", "hours"],
       source: "seed",
       createdAt: "2025-10-15T12:00:00.000Z",

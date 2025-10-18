@@ -71,7 +71,7 @@ python salon_agent.py download-files   # pulls turn detector model
 python salon_agent.py dev              # starts the dev worker (auto-reloads)
 ```
 
-The agent joins the LiveKit room defined in `.env`. Every caller question is matched against the built-in Aurora Glow Salon FAQ before responding. If no answer is found, the agent escalates to the supervisor dashboard. While running in `dev` mode, the CLI watches for file changes and reloads automatically.
+The agent joins the LiveKit room defined in `.env`. Every caller question is matched against the built-in Radiance Glow Salon FAQ before responding. If no answer is found, the agent escalates to the supervisor dashboard. While running in `dev` mode, the CLI watches for file changes and reloads automatically.
 
 ### Escalation workflow
 

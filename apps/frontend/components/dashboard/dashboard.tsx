@@ -4,23 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { HelpRequest, KnowledgeEntry } from "@/lib/types";
 
-interface FormState {
-  answer: string;
-  supervisorName: string;
-  supervisorNotes: string;
-  addToKnowledge: boolean;
-  tags: string;
+import { DashboardHeader, type DashboardView } from "./DashboardHeader";
+import { DashboardSidebar } from "./DashboardSidebar";
+import { KnowledgePanel } from "./KnowledgePanel";
+import { PendingRequestsSection } from "./PendingRequestsSection";
+import { RecentActivitySection } from "./RecentActivitySection";
+import { DEFAULT_FORM_STATE, type FormState } from "./types";
+
+interface DashboardProps {
+  activeView?: DashboardView;
 }
 
-const DEFAULT_FORM_STATE: FormState = {
-  answer: "",
-  supervisorName: "",
-  supervisorNotes: "",
-  addToKnowledge: true,
-  tags: "",
-};
-
-export function Dashboard() {
+export function Dashboard({ activeView = "pending" }: DashboardProps) {
   const [pending, setPending] = useState<HelpRequest[]>([]);
   const [history, setHistory] = useState<HelpRequest[]>([]);
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntry[]>([]);
@@ -28,6 +23,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [formState, setFormState] = useState<Record<string, FormState>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const getForm = useCallback(
     (id: string): FormState => formState[id] ?? DEFAULT_FORM_STATE,
@@ -183,8 +179,24 @@ export function Dashboard() {
     [refresh, resetForm],
   );
 
+  const isSameDay = (value?: string) => {
+    if (!value) return false;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+    const now = new Date();
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  };
+
   const pendingCount = pending.length;
-  const resolvedCount = history.filter((item) => item.status === "resolved").length;
+  const resolvedTodayCount = history.filter(
+    (item) =>
+      item.status === "resolved" &&
+      isSameDay(item.respondedAt ?? item.resolvedAt ?? item.updatedAt),
+  ).length;
   const timeoutCount = history.filter((item) => item.status === "timeout").length;
 
   const sortedKnowledge = useMemo(
@@ -205,276 +217,102 @@ export function Dashboard() {
     [sortedKnowledge],
   );
 
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarOpen((prev) => !prev);
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    void refresh();
+  }, [refresh]);
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Supervisor Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
-              Triage open requests from the Aurora Glow Salon agent.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-            onClick={() => void refresh()}
-            disabled={loading}
-          >
-            {loading ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
-        <dl className="mt-6 grid gap-4 md:grid-cols-3">
-          <SummaryCard label="Pending requests" value={pendingCount} />
-          <SummaryCard label="Resolved today" value={resolvedCount} />
-          <SummaryCard label="Timed out" value={timeoutCount} />
-        </dl>
-        {error ? (
-          <p className="mt-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-      </section>
+    <div className="flex w-full max-w-screen flex-1 overflow-hidden rounded-2xl border border-border/60 bg-card/40 shadow-lg">
+      <DashboardSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        pendingCount={pendingCount}
+        resolvedCount={resolvedTodayCount}
+        timeoutCount={timeoutCount}
+        activeView={activeView}
+      />
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Pending help requests</h2>
-          {pending.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-              No callers are waiting right now.
-            </p>
-          ) : (
-            pending.map((item) => {
-              const form = getForm(item.id);
-              return (
-                <article
-                  key={item.id}
-                  className="rounded-xl border border-border bg-card p-5 shadow-sm"
-                >
-                  <header className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Received {new Date(item.createdAt).toLocaleString()}
-                    </p>
-                    <h3 className="text-base font-semibold">{item.question}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Caller:{" "}
-                      {item.customerName
-                        ? `${item.customerName} (${item.customerPhone ?? "no number"})`
-                        : item.customerPhone ?? "Unknown"}
-                    </p>
-                  </header>
+      <div className="flex flex-1 flex-col">
+        <DashboardHeader
+          activeView={activeView}
+          loading={loading}
+          onRefresh={handleRefresh}
+          onToggleSidebar={handleSidebarToggle}
+        />
 
-                  <div className="mt-4 space-y-3">
-                    <label className="block text-sm font-medium">
-                      Suggested answer
-                      <textarea
-                        className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm"
-                        rows={4}
-                        value={form.answer}
-                        onChange={(event) =>
-                          updateForm(item.id, "answer", event.target.value)
-                        }
-                        placeholder="Type the reply you want the agent to send..."
-                      />
-                    </label>
-
-                    <label className="block text-sm font-medium">
-                      Supervisor name
-                      <input
-                        type="text"
-                        className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm"
-                        value={form.supervisorName}
-                        onChange={(event) =>
-                          updateForm(item.id, "supervisorName", event.target.value)
-                        }
-                        placeholder="Your name (optional)"
-                      />
-                    </label>
-
-                    <label className="block text-sm font-medium">
-                      Internal notes
-                      <textarea
-                        className="mt-1 w-full rounded-md border border-border bg-background p-2 text-sm"
-                        rows={2}
-                        value={form.supervisorNotes}
-                        onChange={(event) =>
-                          updateForm(item.id, "supervisorNotes", event.target.value)
-                        }
-                        placeholder="Notes only visible to the team"
-                      />
-                    </label>
-
-                    <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={form.addToKnowledge}
-                          onChange={(event) =>
-                            updateForm(item.id, "addToKnowledge", event.target.checked)
-                          }
-                        />
-                        Add to knowledge base
-                      </label>
-
-                      <input
-                        type="text"
-                        className="flex-1 rounded-md border border-border bg-background p-2 text-xs"
-                        value={form.tags}
-                        onChange={(event) =>
-                          updateForm(item.id, "tags", event.target.value)
-                        }
-                        placeholder="Tags (comma separated)"
-                      />
-                    </div>
-                  </div>
-
-                    <footer className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
-                        onClick={() => void handleResolve(item.id)}
-                        disabled={submittingId === item.id}
-                      >
-                        {submittingId === item.id ? "Saving..." : "Send to caller"}
-                      </button>
-                      <button
-                        type="button"
-                        className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-60"
-                        onClick={() => void handleTimeout(item.id)}
-                        disabled={submittingId === item.id}
-                      >
-                        Mark timeout
-                      </button>
-                    </footer>
-                </article>
-              );
-            })
-          )}
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Recent activity</h2>
-          <div className="space-y-3">
-            {history.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-                No history yet. Resolved items will appear here.
+        <div className="flex-1 overflow-y-auto px-6 py-6 lg:px-10">
+          <div className="mx-auto w-full max-w-4xl space-y-6">
+            {error ? (
+              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
               </p>
-            ) : (
-              history.map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-xl border border-border bg-card p-4 text-sm shadow-sm"
-                >
-                  <header className="flex flex-wrap items-center justify-between gap-2">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        item.status === "resolved"
-                          ? "bg-emerald-500/10 text-emerald-600"
-                          : "bg-amber-500/10 text-amber-600"
-                      }`}
-                    >
-                      {item.status.toUpperCase()}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Updated {formatTimestamp(item.updatedAt)}
-                    </span>
-                  </header>
-                  <p className="mt-2 font-medium">{item.question}</p>
-                  {item.answer ? (
-                    <p className="mt-1 text-muted-foreground">
-                      <span className="font-semibold">
-                        Answer from {item.supervisorName ?? "supervisor"}:
-                      </span>{" "}
-                      {item.answer}
-                    </p>
-                  ) : null}
-                  {item.supervisorNotes ? (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Notes: {item.supervisorNotes}
-                    </p>
-                  ) : null}
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {item.status === "resolved"
-                      ? `Responded ${formatTimestamp(item.respondedAt ?? item.resolvedAt)}`
-                      : `Timed out ${formatTimestamp(item.timedOutAt ?? item.updatedAt)}`}
+            ) : null}
+
+            {activeView === "pending" ? (
+              <section className="space-y-4">
+                <header>
+                  <h2 className="text-xl font-semibold">Pending help requests</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Review suggested answers and respond before the caller leaves the queue.
                   </p>
-                </article>
-              ))
-            )}
+                </header>
+                <PendingRequestsSection
+                  requests={pending}
+                  getForm={getForm}
+                  updateForm={updateForm}
+                  onResolve={handleResolve}
+                  onTimeout={handleTimeout}
+                  submittingId={submittingId}
+                />
+              </section>
+            ) : null}
+
+            {activeView === "recent" ? (
+              <section className="space-y-4">
+                <header>
+                  <h2 className="text-xl font-semibold">Recent activity</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Track how the supervisor team has handled recent calls and escalations.
+                  </p>
+                </header>
+                <RecentActivitySection history={history} />
+              </section>
+            ) : null}
+
+            {activeView === "learned" ? (
+              <section className="space-y-4">
+                <header>
+                  <h2 className="text-xl font-semibold">Learned answers</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Supervisor-approved responses saved to the knowledge base appear here.
+                  </p>
+                </header>
+                <KnowledgePanel
+                  entries={learnedEntries}
+                  emptyLabel="No learned answers yet. Supervisor-approved replies will show up here."
+                />
+              </section>
+            ) : null}
+
+            {activeView === "seed" ? (
+              <section className="space-y-4">
+                <header>
+                  {/* <h2 className="text-xl font-semibold">Seed knowledge</h2> */}
+                  <p className="text-sm text-muted-foreground">
+                    The foundational answers provided to the agent before learning from calls.
+                  </p>
+                </header>
+                <KnowledgePanel entries={seedEntries} emptyLabel="No seed entries found." />
+              </section>
+            ) : null}
           </div>
-
-          <h2 className="pt-4 text-lg font-semibold">Learned answers</h2>
-          <KnowledgePanel
-            entries={learnedEntries}
-            emptyLabel="No learned answers yet. Supervisor-approved replies will show up here."
-          />
-
-          <h2 className="pt-6 text-lg font-semibold">Seed knowledge</h2>
-          <KnowledgePanel
-            entries={seedEntries}
-            emptyLabel="No seed entries found."
-          />
         </div>
-      </section>
+      </div>
     </div>
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border border-border bg-background/40 p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function KnowledgePanel({
-  entries,
-  emptyLabel,
-}: {
-  entries: KnowledgeEntry[];
-  emptyLabel: string;
-}) {
-  if (entries.length === 0) {
-    return (
-      <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-        {emptyLabel}
-      </p>
-    );
-  }
-
-  return (
-    <div className="max-h-[300px] space-y-3 overflow-y-auto pr-1">
-      {entries.map((entry) => (
-        <article
-          key={entry.id}
-          className="rounded-xl border border-border bg-card p-4 text-sm shadow-sm"
-        >
-          <h3 className="font-semibold">{entry.question}</h3>
-          <p className="mt-1 text-muted-foreground">{entry.answer}</p>
-          <footer className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span>{formatTimestamp(entry.updatedAt)}</span>
-            {entry.source && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                {entry.source}
-              </span>
-            )}
-            {entry.tags?.map((tag) => (
-              <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                #{tag}
-              </span>
-            ))}
-          </footer>
-        </article>
-      ))}
-    </div>
-  );
-}
-
-function formatTimestamp(value?: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
