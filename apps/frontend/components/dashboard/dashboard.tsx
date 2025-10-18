@@ -274,7 +274,7 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
             {activeView === "recent" ? (
               <section className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-semibold">Recent activity</h2>
+                  {/* <h2 className="text-xl font-semibold">Recent activity</h2> */}
                   <p className="text-sm text-muted-foreground">
                     Track how the supervisor team has handled recent calls and escalations.
                   </p>
@@ -286,7 +286,6 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
             {activeView === "learned" ? (
               <section className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-semibold">Learned answers</h2>
                   <p className="text-sm text-muted-foreground">
                     Supervisor-approved responses saved to the knowledge base appear here.
                   </p>
