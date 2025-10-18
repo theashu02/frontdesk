@@ -23,11 +23,11 @@ load_dotenv()
 
 
 SALON_PROFILE = {
-    "name": "Aurora Glow Salon",
-    "tagline": "a boutique hair and spa studio in downtown Denver",
-    "address": "123 Market Street, Denver, CO 80202",
+    "name": "Radiance Salon",
+    "tagline": "a boutique hair and spa studio in Kanpur Denver",
+    "address": "Z square near mall roal Kanpur, 208001",
     "parking": "Validated parking in the Market Street Garage across the street.",
-    "contact": "+1 (303) 555-0188",
+    "contact": "+91 9555986xxx",
     "hours": {
         "monday": "9am-6pm",
         "tuesday": "9am-6pm",
@@ -55,7 +55,7 @@ SALON_FAQ = [
         "id": "location",
         "question": "Where are you located?",
         "answer": (
-            "Aurora Glow Salon is at 123 Market Street in downtown Denver. "
+            "Radiance Glow Salon is at Z square mall in downtown Kanpur. "
             "We validate parking for the Market Street Garage right across from our entrance."
         ),
         "keywords": {"where", "location", "address", "parking", "directions"},

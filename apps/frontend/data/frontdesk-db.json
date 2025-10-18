@@ -3,7 +3,7 @@
     {
       "id": "hours",
       "question": "What are your business hours?",
-      "answer": "Aurora Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
+      "answer": "Radiance Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
       "tags": [
         "schedule",
         "hours"
@@ -64,6 +64,14 @@
       "source": "supervisor",
       "createdAt": "2025-10-17T20:54:05.199Z",
       "updatedAt": "2025-10-17T20:54:05.199Z"
+    },
+    {
+      "id": "8a386545-f53a-44fc-b73f-c2c79012430f",
+      "question": "what is your barber name",
+      "answer": "barber name is omen atom",
+      "source": "supervisor",
+      "createdAt": "2025-10-17T21:47:55.879Z",
+      "updatedAt": "2025-10-17T21:47:55.879Z"
     }
   ],
   "helpRequests": [
@@ -80,6 +88,18 @@
       "supervisorName": "omen",
       "supervisorNotes": "#answer",
       "resolvedAt": "2025-10-17T20:54:05.178Z"
+    },
+    {
+      "id": "90a3177b-1414-4a86-abbd-c8c2f1573ffb",
+      "question": "what is your barber name",
+      "channel": "livekit",
+      "status": "resolved",
+      "createdAt": "2025-10-17T21:46:59.735Z",
+      "updatedAt": "2025-10-17T21:47:55.863Z",
+      "answer": "barber name is omen atom",
+      "supervisorName": "simpl",
+      "resolvedAt": "2025-10-17T21:47:55.863Z",
+      "respondedAt": "2025-10-17T21:47:55.863Z"
     }
   ]
 }

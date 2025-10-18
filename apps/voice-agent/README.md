@@ -1,6 +1,6 @@
-# Aurora Glow Voice Agent
+# Radiance Glow Voice Agent
 
-This Python worker hosts the simulated Aurora Glow Salon receptionist built with the LiveKit Agents framework.
+This Python worker hosts the simulated Radiance Glow Salon receptionist built with the LiveKit Agents framework.
 The agent can join a LiveKit room, answer salon FAQs, and escalate to the supervisor dashboard when it cannot
 find an answer.
 
@@ -47,7 +47,7 @@ Key settings expected in `.env`:
 
 ## How the agent works
 
-- The receptionist is prompted with Aurora Glow Salon's business profile and FAQs.
+- The receptionist is prompted with Radiance Glow Salon's business profile and FAQs.
 - Every caller question is sent through the `lookup_salon_info` tool. Learned answers stored by the supervisor UI are fetched via `/api/knowledge-base`, so the agent stays up to date without redeploying.
 - When no answer is available, the agent triggers `request_human_help`, which POSTs to `/api/help-requests` on the frontend, logs a supervisor ping, and starts polling for the resolution. As soon as a supervisor responds, the agent thanks the caller and relays the answer automatically.
 - Optional tools let the agent remember the caller's name and callback number, which are passed along in the help-request payload.
