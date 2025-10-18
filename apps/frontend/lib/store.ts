@@ -1,119 +1,202 @@
-import path from "node:path";
+"use server";
+
 import { randomUUID } from "node:crypto";
-import { promises as fs } from "node:fs";
+
+import { FieldValue, type DocumentSnapshot } from "firebase-admin/firestore";
 
 import type {
-  FrontdeskDatabase,
   HelpRequest,
   HelpRequestStatus,
   KnowledgeEntry,
 } from "./types";
+import { getDb } from "./firebase-admin";
 
-const normalizedCwd = path.resolve(process.cwd());
-const appPathSuffix = path.join("apps", "frontend");
-const isAppDirectory = normalizedCwd.endsWith(appPathSuffix);
-const baseDir = isAppDirectory
-  ? normalizedCwd
-  : path.join(normalizedCwd, "apps", "frontend");
+const HELP_REQUESTS_COLLECTION = "helpRequests";
+const KNOWLEDGE_COLLECTION = "knowledgeBase";
 
-const DATA_DIR = path.join(baseDir, "data");
-const DB_PATH = path.join(DATA_DIR, "frontdesk-db.json");
-
-const DEFAULT_DB: FrontdeskDatabase = {
-  knowledgeBase: [
-    {
-      id: "hours",
-      question: "What are your business hours?",
-      answer:
-        "Aurora Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
-      tags: ["schedule", "hours"],
-      source: "seed",
-      createdAt: "2025-10-15T12:00:00.000Z",
-      updatedAt: "2025-10-15T12:00:00.000Z",
-    },
-    {
-      id: "location",
-      question: "Where is the salon located?",
-      answer:
-        "We are located at 123 Market Street, Denver, CO 80202. Validated parking is available in the Market Street Garage across the street.",
-      tags: ["location", "parking"],
-      source: "seed",
-      createdAt: "2025-10-15T12:00:00.000Z",
-      updatedAt: "2025-10-15T12:00:00.000Z",
-    },
-    {
-      id: "services",
-      question: "What services do you provide?",
-      answer:
-        "Our menu includes signature haircuts, balayage color, restorative conditioning treatments, and the Glow & Go package (cut, gloss, and blowout).",
-      tags: ["services"],
-      source: "seed",
-      createdAt: "2025-10-15T12:00:00.000Z",
-      updatedAt: "2025-10-15T12:00:00.000Z",
-    },
-    {
-      id: "pricing",
-      question: "What are your prices like?",
-      answer:
-        "Haircuts start at $85, specialty color from $185, and the Glow & Go package is $230. Quotes are confirmed before each appointment begins.",
-      tags: ["pricing"],
-      source: "seed",
-      createdAt: "2025-10-15T12:00:00.000Z",
-      updatedAt: "2025-10-15T12:00:00.000Z",
-    },
-    {
-      id: "cancellation",
-      question: "What is the cancellation policy?",
-      answer:
-        "Please provide 24 hours notice to cancel or reschedule. Late cancellations or no-shows incur a $50 fee.",
-      tags: ["policies"],
-      source: "seed",
-      createdAt: "2025-10-15T12:00:00.000Z",
-      updatedAt: "2025-10-15T12:00:00.000Z",
-    },
-  ],
-  helpRequests: [],
+type HelpRequestRecord = HelpRequest;
+type KnowledgeRecord = KnowledgeEntry & {
+  questionLower: string;
 };
 
-async function ensureDatabaseFile(): Promise<void> {
-  try {
-    await fs.access(DB_PATH);
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2), "utf-8");
+const DEFAULT_KNOWLEDGE_SEED: KnowledgeEntry[] = [
+  {
+    id: "hours",
+    question: "What are your business hours?",
+    answer:
+      "Radiance Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
+    tags: ["schedule", "hours"],
+    source: "seed",
+    createdAt: "2025-10-15T12:00:00.000Z",
+    updatedAt: "2025-10-15T12:00:00.000Z",
+  },
+  {
+    id: "location",
+    question: "Where is the salon located?",
+    answer:
+      "We are located at 123 Market Street, Denver, CO 80202. Validated parking is available in the Market Street Garage across the street.",
+    tags: ["location", "parking"],
+    source: "seed",
+    createdAt: "2025-10-15T12:00:00.000Z",
+    updatedAt: "2025-10-15T12:00:00.000Z",
+  },
+  {
+    id: "services",
+    question: "What services do you provide?",
+    answer:
+      "Our menu includes signature haircuts, balayage color, restorative conditioning treatments, and the Glow & Go package (cut, gloss, and blowout).",
+    tags: ["services"],
+    source: "seed",
+    createdAt: "2025-10-15T12:00:00.000Z",
+    updatedAt: "2025-10-15T12:00:00.000Z",
+  },
+  {
+    id: "pricing",
+    question: "What are your prices like?",
+    answer:
+      "Haircuts start at $85, specialty color from $185, and the Glow & Go package is $230. Quotes are confirmed before each appointment begins.",
+    tags: ["pricing"],
+    source: "seed",
+    createdAt: "2025-10-15T12:00:00.000Z",
+    updatedAt: "2025-10-15T12:00:00.000Z",
+  },
+  {
+    id: "cancellation",
+    question: "What is the cancellation policy?",
+    answer:
+      "Please provide 24 hours notice to cancel or reschedule. Late cancellations or no-shows incur a $50 fee.",
+    tags: ["policies"],
+    source: "seed",
+    createdAt: "2025-10-15T12:00:00.000Z",
+    updatedAt: "2025-10-15T12:00:00.000Z",
+  },
+];
+
+let knowledgeSeedPromise: Promise<void> | null = null;
+
+function toIsoString(value: unknown): string | undefined {
+  if (!value) {
+    return undefined;
   }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === "object" && value !== null && "toDate" in value) {
+    try {
+      const date = (value as { toDate: () => Date }).toDate();
+      return date.toISOString();
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
 }
 
-async function readDatabase(): Promise<FrontdeskDatabase> {
-  await ensureDatabaseFile();
-  const raw = await fs.readFile(DB_PATH, "utf-8");
-  return JSON.parse(raw) as FrontdeskDatabase;
+function sanitizeHelpRequest(data: FirebaseFirestore.DocumentData, id: string): HelpRequest {
+  return {
+    id,
+    question: data.question,
+    customerName: data.customerName ?? undefined,
+    customerPhone: data.customerPhone ?? undefined,
+    channel: data.channel ?? undefined,
+    status: data.status,
+    createdAt: toIsoString(data.createdAt) ?? new Date().toISOString(),
+    updatedAt: toIsoString(data.updatedAt) ?? new Date().toISOString(),
+    answer: data.answer ?? undefined,
+    supervisorName: data.supervisorName ?? undefined,
+    supervisorNotes: data.supervisorNotes ?? undefined,
+    resolvedAt: toIsoString(data.resolvedAt),
+    respondedAt: toIsoString(data.respondedAt),
+    timedOutAt: toIsoString(data.timedOutAt),
+  };
 }
 
-async function writeDatabase(db: FrontdeskDatabase): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(DB_PATH, JSON.stringify(db, null, 2), "utf-8");
+function sanitizeKnowledgeEntry(
+  doc: DocumentSnapshot<FirebaseFirestore.DocumentData>,
+): KnowledgeEntry {
+  const data = doc.data() as KnowledgeRecord;
+
+  return {
+    id: data.id ?? doc.id,
+    question: data.question,
+    answer: data.answer,
+    tags: data.tags,
+    source: data.source,
+    createdAt: toIsoString(data.createdAt) ?? new Date().toISOString(),
+    updatedAt: toIsoString(data.updatedAt) ?? new Date().toISOString(),
+  };
+}
+
+async function ensureKnowledgeSeed() {
+  if (knowledgeSeedPromise) {
+    return knowledgeSeedPromise;
+  }
+
+  knowledgeSeedPromise = (async () => {
+    const db = await getDb();
+    const collection = db.collection(KNOWLEDGE_COLLECTION);
+    const snapshot = await collection.limit(1).get();
+    if (!snapshot.empty) {
+      return;
+    }
+
+    await Promise.all(
+      DEFAULT_KNOWLEDGE_SEED.map(async (entry) => {
+        const docRef = collection.doc(entry.id);
+        await docRef.set({
+          ...entry,
+          id: docRef.id,
+          questionLower: entry.question.toLowerCase(),
+        });
+      }),
+    );
+  })().catch((error) => {
+    knowledgeSeedPromise = null;
+    throw error;
+  });
+
+  return knowledgeSeedPromise;
 }
 
 export async function listHelpRequests(
   status: HelpRequestStatus | "all" = "pending",
 ): Promise<HelpRequest[]> {
-  const db = await readDatabase();
+  const db = await getDb();
+  const collection = db.collection(HELP_REQUESTS_COLLECTION);
+  let snapshot: FirebaseFirestore.QuerySnapshot<FirebaseFirestore.DocumentData>;
+
   if (status === "all") {
-    return db.helpRequests.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+    snapshot = await collection.orderBy("createdAt", "desc").get();
+  } else {
+    snapshot = await collection.where("status", "==", status).get();
   }
-  return db.helpRequests
-    .filter((req) => req.status === status)
-    .sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+
+  const items = snapshot.docs.map((doc) => sanitizeHelpRequest(doc.data(), doc.id));
+
+  if (status === "all") {
+    return items;
+  }
+
+  return items.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 }
 
 export async function getHelpRequest(id: string): Promise<HelpRequest | undefined> {
-  const db = await readDatabase();
-  return db.helpRequests.find((req) => req.id === id);
+  const db = await getDb();
+  const doc = await db.collection(HELP_REQUESTS_COLLECTION).doc(id).get();
+  if (!doc.exists) {
+    return undefined;
+  }
+
+  return sanitizeHelpRequest(doc.data()!, doc.id);
 }
 
 export interface CreateHelpRequestInput {
@@ -126,28 +209,36 @@ export interface CreateHelpRequestInput {
 export async function createHelpRequest(
   input: CreateHelpRequestInput,
 ): Promise<HelpRequest> {
-  const db = await readDatabase();
-  const timestamp = new Date().toISOString();
-  const entry: HelpRequest = {
-    id: randomUUID(),
+  const db = await getDb();
+  const collection = db.collection(HELP_REQUESTS_COLLECTION);
+  const docRef = collection.doc();
+  const now = new Date().toISOString();
+
+  const record: HelpRequestRecord = {
+    id: docRef.id,
     question: input.question.trim(),
-    customerName: input.customerName?.trim() || undefined,
-    customerPhone: input.customerPhone?.trim() || undefined,
-    channel: input.channel || "voice",
     status: "pending",
-    createdAt: timestamp,
-    updatedAt: timestamp,
+    createdAt: now,
+    updatedAt: now,
   };
 
-  db.helpRequests.push(entry);
-  await writeDatabase(db);
+  const customerName = input.customerName?.trim();
+  if (customerName) {
+    record.customerName = customerName;
+  }
 
-  console.info(`Hey, I need help answering "${entry.question}".`);
-  console.info(
-    `[supervisor-alert] request=${entry.id} caller=${entry.customerName ?? "caller"} channel=${entry.channel}`,
-  );
+  const customerPhone = input.customerPhone?.trim();
+  if (customerPhone) {
+    record.customerPhone = customerPhone;
+  }
 
-  return entry;
+  const channel = input.channel?.trim();
+  if (channel) {
+    record.channel = channel;
+  }
+
+  await docRef.set(record);
+  return record;
 }
 
 export interface ResolveHelpRequestInput {
@@ -162,58 +253,126 @@ export async function updateHelpRequest(
   id: string,
   input: ResolveHelpRequestInput,
 ): Promise<HelpRequest> {
-  const db = await readDatabase();
-  const request = db.helpRequests.find((req) => req.id === id);
+  const db = await getDb();
+  const docRef = db.collection(HELP_REQUESTS_COLLECTION).doc(id);
+  const snapshot = await docRef.get();
 
-  if (!request) {
+  if (!snapshot.exists) {
     throw new Error("Help request not found");
   }
 
+  const existing = sanitizeHelpRequest(snapshot.data()!, snapshot.id);
   const now = new Date().toISOString();
 
   if (input.action === "timeout") {
-    request.status = "timeout";
-    request.updatedAt = now;
-    request.timedOutAt = now;
-  } else {
-    request.status = "resolved";
-    request.answer = input.answer?.trim();
-    request.supervisorName = input.supervisorName?.trim() || undefined;
-    request.supervisorNotes = input.supervisorNotes?.trim() || undefined;
-    request.resolvedAt = now;
-    request.updatedAt = now;
-    request.respondedAt = now;
-    const destination = request.customerPhone ?? "(unknown number)";
-    const message =
-      request.answer ??
-      "Your question has been reviewed by a supervisor and we will follow up shortly.";
-    console.info(`[caller-update] to=${destination} message="${message}"`);
+    await docRef.update({
+      status: "timeout",
+      updatedAt: now,
+      timedOutAt: now,
+    });
+
+    return {
+      ...existing,
+      status: "timeout",
+      updatedAt: now,
+      timedOutAt: now,
+    };
   }
 
-  await writeDatabase(db);
-  return request;
+  const answer = input.answer?.trim();
+  if (!answer) {
+    throw new Error("answer is required when resolving");
+  }
+
+  const supervisorName = input.supervisorName?.trim();
+  const supervisorNotes = input.supervisorNotes?.trim();
+
+  const updates: FirebaseFirestore.UpdateData<HelpRequestRecord> = {
+    status: "resolved",
+    answer,
+    updatedAt: now,
+    resolvedAt: now,
+    respondedAt: now,
+    timedOutAt: FieldValue.delete(),
+  };
+
+  if (supervisorName) {
+    updates.supervisorName = supervisorName;
+  } else {
+    updates.supervisorName = FieldValue.delete();
+  }
+
+  if (supervisorNotes) {
+    updates.supervisorNotes = supervisorNotes;
+  } else {
+    updates.supervisorNotes = FieldValue.delete();
+  }
+
+  await docRef.update(updates);
+
+  const result: HelpRequest = {
+    ...existing,
+    status: "resolved",
+    answer,
+    updatedAt: now,
+    resolvedAt: now,
+    respondedAt: now,
+  };
+
+  if (supervisorName) {
+    result.supervisorName = supervisorName;
+  } else {
+    delete result.supervisorName;
+  }
+
+  if (supervisorNotes) {
+    result.supervisorNotes = supervisorNotes;
+  } else {
+    delete result.supervisorNotes;
+  }
+
+  delete result.timedOutAt;
+
+  const destination = existing.customerPhone ?? "(unknown number)";
+  const message =
+    result.answer ??
+    "Your question has been reviewed by a supervisor and we will follow up shortly.";
+  console.info(`[caller-update] to=${destination} message="${message}"`);
+
+  return result;
 }
 
 export async function listKnowledgeEntries(): Promise<KnowledgeEntry[]> {
-  const db = await readDatabase();
-  return db.knowledgeBase.sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-  );
+  await ensureKnowledgeSeed();
+
+  const db = await getDb();
+  const collection = db.collection(KNOWLEDGE_COLLECTION);
+  const snapshot = await collection.orderBy("updatedAt", "desc").get();
+
+  return snapshot.docs.map((doc) => sanitizeKnowledgeEntry(doc));
 }
 
 export async function searchKnowledgeEntries(
   query: string,
   limit = 5,
 ): Promise<KnowledgeEntry[]> {
-  const db = await readDatabase();
-  const needle = query.toLowerCase();
+  await ensureKnowledgeSeed();
 
-  const scored = db.knowledgeBase
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) {
+    return [];
+  }
+
+  const db = await getDb();
+  const allSnapshot = await db.collection(KNOWLEDGE_COLLECTION).get();
+  const entries = allSnapshot.docs.map((doc) => sanitizeKnowledgeEntry(doc));
+
+  const scored = entries
     .map((entry) => {
       const score =
-        (entry.question.toLowerCase().includes(needle) ? 2 : 0) +
-        (entry.answer.toLowerCase().includes(needle) ? 1 : 0) +
-        (entry.tags?.some((tag) => tag.toLowerCase().includes(needle)) ? 1 : 0);
+        (entry.question.toLowerCase().includes(trimmed) ? 2 : 0) +
+        (entry.answer.toLowerCase().includes(trimmed) ? 1 : 0) +
+        (entry.tags?.some((tag) => tag.toLowerCase().includes(trimmed)) ? 1 : 0);
       return { entry, score };
     })
     .filter(({ score }) => score > 0)
@@ -234,35 +393,61 @@ export interface UpsertKnowledgeEntryInput {
 export async function upsertKnowledgeEntry(
   input: UpsertKnowledgeEntryInput,
 ): Promise<KnowledgeEntry> {
-  const db = await readDatabase();
+  await ensureKnowledgeSeed();
+
+  const db = await getDb();
+  const collection = db.collection(KNOWLEDGE_COLLECTION);
   const question = input.question.trim();
-  const existing = db.knowledgeBase.find(
-    (entry) => entry.question.toLowerCase() === question.toLowerCase(),
-  );
+  const questionLower = question.toLowerCase();
+  const tags = input.tags?.map((tag) => tag.trim()).filter(Boolean);
   const now = new Date().toISOString();
 
-  if (existing) {
-    existing.answer = input.answer.trim();
-    existing.tags = input.tags?.map((tag) => tag.trim()).filter(Boolean);
-    existing.source = input.source ?? existing.source;
-    existing.updatedAt = now;
-    await writeDatabase(db);
-    return existing;
+  const existingSnapshot = await collection
+    .where("questionLower", "==", questionLower)
+    .limit(1)
+    .get();
+
+  if (!existingSnapshot.empty) {
+    const doc = existingSnapshot.docs[0];
+
+    const update: FirebaseFirestore.UpdateData<KnowledgeRecord> = {
+      answer: input.answer.trim(),
+      updatedAt: now,
+    };
+
+    if (tags && tags.length > 0) {
+      update.tags = tags;
+    } else {
+      update.tags = FieldValue.delete();
+    }
+
+    if (input.source) {
+      update.source = input.source;
+    }
+
+    await doc.ref.update(update);
+    const refreshed = await doc.ref.get();
+    return sanitizeKnowledgeEntry(refreshed);
   }
 
-  const entry: KnowledgeEntry = {
-    id: randomUUID(),
+  const docRef = collection.doc(randomUUID());
+  const record: KnowledgeRecord = {
+    id: docRef.id,
     question,
     answer: input.answer.trim(),
-    tags: input.tags?.map((tag) => tag.trim()).filter(Boolean),
     source: input.source ?? "supervisor",
     createdAt: now,
     updatedAt: now,
+    questionLower,
   };
 
-  db.knowledgeBase.push(entry);
-  await writeDatabase(db);
-  return entry;
+  if (tags && tags.length > 0) {
+    record.tags = tags;
+  }
+
+  await docRef.set(record);
+  const saved = await docRef.get();
+  return sanitizeKnowledgeEntry(saved);
 }
 
 export async function addAnswerToKnowledgeBase(

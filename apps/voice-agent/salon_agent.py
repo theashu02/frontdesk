@@ -55,7 +55,7 @@ SALON_FAQ = [
         "id": "location",
         "question": "Where are you located?",
         "answer": (
-            "Aurora Glow Salon is at Z square mall in downtown Kanpur. "
+            "Radiance Glow Salon is at Z square mall in downtown Kanpur. "
             "We validate parking for the Market Street Garage right across from our entrance."
         ),
         "keywords": {"where", "location", "address", "parking", "directions"},
