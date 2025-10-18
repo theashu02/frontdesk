@@ -245,7 +245,7 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
         />
 
         <div className="flex-1 overflow-y-auto px-6 py-6 lg:px-10">
-          <div className="mx-auto w-full max-w-4xl space-y-6">
+          <div className="mx-auto w-full max-w-6xl space-y-6">
             {error ? (
               <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 {error}
@@ -255,7 +255,6 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
             {activeView === "pending" ? (
               <section className="space-y-4">
                 <header>
-                  <h2 className="text-xl font-semibold">Pending help requests</h2>
                   <p className="text-sm text-muted-foreground">
                     Review suggested answers and respond before the caller leaves the queue.
                   </p>
@@ -274,7 +273,6 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
             {activeView === "recent" ? (
               <section className="space-y-4">
                 <header>
-                  {/* <h2 className="text-xl font-semibold">Recent activity</h2> */}
                   <p className="text-sm text-muted-foreground">
                     Track how the supervisor team has handled recent calls and escalations.
                   </p>
@@ -300,7 +298,6 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
             {activeView === "seed" ? (
               <section className="space-y-4">
                 <header>
-                  {/* <h2 className="text-xl font-semibold">Seed knowledge</h2> */}
                   <p className="text-sm text-muted-foreground">
                     The foundational answers provided to the agent before learning from calls.
                   </p>

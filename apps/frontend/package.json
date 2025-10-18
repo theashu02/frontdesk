@@ -13,6 +13,8 @@
     "@space-man/react-theme-animation": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "firebase": "^12.4.0",
+    "firebase-admin": "^12.6.0",
     "livekit-server-sdk": "^2.14.0",
     "lucide-react": "^0.546.0",
     "next": "15.5.6",

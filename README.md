@@ -4,15 +4,16 @@ This repo demonstrates a human-in-the-loop voice receptionist for a hair salon. 
 
 ## Project layout
 
-- `apps/frontend` – Next.js 15 app that serves the supervisor dashboard and REST APIs.
-- `apps/voice-agent` – Python LiveKit agent that handles live calls and escalations.
-- `apps/frontend/data/frontdesk-db.json` – JSON store for help requests and knowledge entries (auto-seeded on first run).
+- `apps/frontend` - Next.js 15 app that serves the supervisor dashboard and REST APIs.
+- `apps/voice-agent` - Python LiveKit agent that handles live calls and escalations.
+- Firebase Firestore (via Firebase Admin) - persistent store for help requests and knowledge entries.
 
 ## Prerequisites
 
 - Node.js 18+ (Bun is the package manager configured in `package.json`).
 - Python 3.10+ for the LiveKit worker.
 - LiveKit Cloud project and API credentials.
+- Firebase project with Firestore enabled and a service account (Admin SDK credentials).
 - API keys for speech/LLM providers: OpenAI, Deepgram, Cartesia (defaults used in the Python script).
 
 ---
@@ -27,9 +28,24 @@ bun run dev --filter frontend
 
 Open http://localhost:3000 to see the supervisor UI. All REST endpoints are exposed from the same app under `/api`.
 
+### Configure Firebase
+
+Create `apps/frontend/.env.local` (or set environment variables in your hosting provider) with your Firebase Admin SDK credentials:
+
+```bash
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+> **Note**
+> When copying the private key from the Google Cloud console, replace literal newlines with `\n` if you keep it on a single line (as shown above). Alternatively, use a multiline value supported by your environment.
+
+With the credentials in place, Firestore stores help requests and knowledge entries automatically.
+
 ### Seed data
 
-On first launch, `apps/frontend/data/frontdesk-db.json` is created with example salon FAQs. You can edit this file directly or manage entries from the **Knowledge Base** tab in the dashboard.
+On first launch, the Firestore `knowledgeBase` collection is auto-seeded with example salon FAQs. You can curate entries from the **Knowledge Base** tab or by calling the `/api/knowledge-base` endpoint.
 
 ### REST API cheatsheet
 
@@ -84,7 +100,7 @@ The agent joins the LiveKit room defined in `.env`. Every caller question is mat
 
 ## Bridge real phone calls with LiveKit Cloud PSTN
 
-The Python worker only listens in a LiveKit room; to reach it from a real phone call, use LiveKit Cloud’s PSTN feature to bridge PSTN callers into that room.
+The Python worker only listens in a LiveKit room; to reach it from a real phone call, use LiveKit Cloud's PSTN feature to bridge PSTN callers into that room.
 
 1. **Expose LiveKit credentials to the Next.js app**  
    Create `apps/frontend/.env.local` (or set environment vars in your hosting platform):
@@ -101,7 +117,7 @@ The Python worker only listens in a LiveKit room; to reach it from a real phone 
 
 3. **Configure LiveKit Cloud PSTN**  
    - In the LiveKit Cloud dashboard, enable PSTN and claim a phone number (or configure SIP).
-   - Set the “Token Request URL” (or equivalent webhook) to `POST https://your-domain/api/livekit/token`.
+   - Set the "Token Request URL" (or equivalent webhook) to `POST https://your-domain/api/livekit/token`.
    - Supply any headers LiveKit requires; if you set `LIVEKIT_PSTN_SHARED_SECRET`, add `x-livekit-shared-secret: <same secret>`.
    - Choose the room name LiveKit should create/bridge into (e.g. `frontdesk-salon`). Configure your Python worker to join the same room (`LIVEKIT_ROOM_NAME` in `.env`).
 
@@ -122,9 +138,9 @@ If you need to differentiate caller identities, include metadata in the PSTN con
 
 The supervisor dashboard offers three tabs:
 
-- **Pending Requests** – triage queue with suggested answers and a reply form.
-- **History** – record of resolved/time-out requests with answers and supervisors.
-- **Knowledge Base** – browse and add canonical answers; saving here teaches the agent permanently.
+- **Pending Requests** - triage queue with suggested answers and a reply form.
+- **History** - record of resolved/time-out requests with answers and supervisors.
+- **Knowledge Base** - browse and add canonical answers; saving here teaches the agent permanently.
 
 The dashboard refreshes automatically every 15 seconds and includes a manual **Refresh** button.
 
@@ -132,8 +148,8 @@ The dashboard refreshes automatically every 15 seconds and includes a manual **R
 
 ## Development notes
 
-- Persistence is a JSON file for simplicity. Swap `apps/frontend/lib/store.ts` for your preferred database in production.
-- Console logs in API routes simulate “texting” the customer. Replace with Twilio or another SMS/webhook integration to notify customers for real.
+- Persistence uses Google Firestore via Firebase Admin. Update `apps/frontend/lib/store.ts` if you need to point at a different database.
+- Console logs in API routes simulate texting the customer. Replace them with Twilio or another SMS/webhook integration to notify customers for real.
 - The Python agent uses LiveKit plugin defaults (Deepgram STT, Cartesia TTS, OpenAI LLM). Switch providers by updating `.env` and, if needed, the requirements file.
 - Remember to run `bun install` after pulling repo changes that modify JavaScript dependencies (e.g. the LiveKit server SDK).
 
@@ -142,6 +158,6 @@ The dashboard refreshes automatically every 15 seconds and includes a manual **R
 ## Next steps
 
 - Add authentication/role-based access to the dashboard.
-- Replace file storage with hosted data (Supabase, DynamoDB, etc.).
-- Connect the “text the customer” path to SMS/CRM tooling.
+- Harden Firestore security rules or integrate with your existing data platform.
+- Connect the "text the customer" path to SMS/CRM tooling.
 - Add monitoring or alerts for stale pending requests.

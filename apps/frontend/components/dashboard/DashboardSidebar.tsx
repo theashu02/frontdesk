@@ -18,6 +18,7 @@ interface DashboardSidebarProps {
 type SidebarTone = "primary" | "success" | "warning";
 
 const NAV_ITEMS: Array<{ label: string; href: string; view: DashboardView }> = [
+  { label: "Pending Requests", href: "/", view: "pending" },
   { label: "Recent Activity", href: "/recent-activity", view: "recent" },
   { label: "Learned Answers", href: "/learned-answers", view: "learned" },
   { label: "Seed Knowledge", href: "/seed-knowledge", view: "seed" },
@@ -74,14 +75,8 @@ export function DashboardSidebar({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="space-y-4">
-            <SidebarStat label="Pending Requests" value={pendingCount} tone="primary" />
-            <SidebarStat label="Resolved Today" value={resolvedCount} tone="success" />
-            <SidebarStat label="Timed Out" value={timeoutCount} tone="warning" />
-          </div>
-
-          <nav className="mt-8 space-y-1">
+        <div className="flex-1 overflow-y-auto px-6 py-2 space-y-5">
+          <nav className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Navigation
             </p>
@@ -106,6 +101,12 @@ export function DashboardSidebar({
               </Link>
             ))}
           </nav>
+
+          <div className="space-y-3">
+            <SidebarStat label="Pending Requests" value={pendingCount} tone="primary" />
+            <SidebarStat label="Resolved Today" value={resolvedCount} tone="success" />
+            <SidebarStat label="Timed Out" value={timeoutCount} tone="warning" />
+          </div>
         </div>
 
         <div className="border-t border-border/60 px-6 py-4 text-xs text-muted-foreground">
