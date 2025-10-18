@@ -109,6 +109,7 @@ SALON_FAQ = [
 class SalonKnowledgeBase:
     def __init__(self, entries: list[dict], minimum_confidence: float = 1.5) -> None:
         self._entries = entries
+        self._dynamic_entries: list[dict] = []
         self._minimum_confidence = minimum_confidence
 
     def match(self, text: str) -> tuple[Optional[dict], float]:
@@ -119,7 +120,7 @@ class SalonKnowledgeBase:
         best_entry: Optional[dict] = None
         best_score = 0.0
 
-        for entry in self._entries:
+        for entry in self._entries + self._dynamic_entries:
             score = 0.0
 
             for keyword in entry.get("keywords", []):
@@ -130,16 +131,40 @@ class SalonKnowledgeBase:
                 if phrase in normalized:
                     score += 1.5
 
+            if not entry.get("keywords") and not entry.get("phrases"):
+                question_tokens = set(re.findall(r"[a-z0-9]+", entry.get("question", "").lower()))
+                overlap = tokens & question_tokens
+                if overlap:
+                    score += 0.75 * len(overlap)
+
+            tags = entry.get("tags")
+            if tags:
+                tag_tokens = {str(tag).lower() for tag in tags if isinstance(tag, str)}
+                overlap = tokens & tag_tokens
+                if overlap:
+                    score += 1.0 * len(overlap)
+
             if score > best_score:
                 best_entry = entry
                 best_score = score
 
         return best_entry, best_score
 
-    def instructions_fragment(self) -> str:
+    def update_dynamic_entries(self, entries: list[dict]) -> None:
+        self._dynamic_entries = entries
+
+    def instructions_fragment(self, max_entries: int = 25) -> str:
         formatted = []
-        for entry in self._entries:
-            formatted.append(f"- {entry['question']}: {entry['answer']}")
+        combined = self._entries + self._dynamic_entries
+
+        if max_entries is not None:
+            combined = combined[:max_entries]
+
+        for entry in combined:
+            question = entry.get("question")
+            answer = entry.get("answer")
+            if question and answer:
+                formatted.append(f"- {question}: {answer}")
         return "\n".join(formatted)
 
     @property
@@ -175,6 +200,37 @@ async def _lookup_remote_knowledge(question: str) -> Optional[dict]:
     if not candidates:
         return None
     return candidates[0]
+
+
+async def _fetch_all_remote_knowledge(limit: int = 50) -> list[dict]:
+    backend_base_url = os.getenv("BACKEND_BASE_URL")
+    if not backend_base_url:
+        return []
+
+    url = backend_base_url.rstrip("/") + "/api/knowledge-base"
+    params: dict[str, str] | None = None
+    if limit:
+        params = {"limit": str(limit)}
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=3.0)) as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            if isinstance(data, list):
+                return data
+    except httpx.HTTPError as exc:
+        logger.warning("Failed to preload remote knowledge: %s", exc)
+    return []
+
+
+async def preload_remote_knowledge(limit: int = 50) -> None:
+    entries = await _fetch_all_remote_knowledge(limit)
+    knowledge_base.update_dynamic_entries(entries)
+    if entries:
+        logger.info("Loaded %d remote knowledge entries into local cache", len(entries))
+    else:
+        logger.info("No remote knowledge entries found to cache")
 
 
 @dataclass
@@ -415,6 +471,18 @@ async def request_human_help(
 
 
 def build_agent_instructions() -> str:
+    knowledge_summary = knowledge_base.instructions_fragment()
+    if knowledge_summary:
+        knowledge_section = (
+            "Salon knowledge for quick reference (includes supervisor-approved answers):\n"
+            f"{knowledge_summary}\n"
+        )
+    else:
+        knowledge_section = (
+            "Salon knowledge for quick reference:\n"
+            "- No dynamic entries are currently cached.\n"
+        )
+
     return (
         f"You are the voice receptionist for {SALON_PROFILE['name']}, {SALON_PROFILE['tagline']}.\n"
         f"Address: {SALON_PROFILE['address']}. Contact number: {SALON_PROFILE['contact']}.\n"
@@ -429,8 +497,7 @@ def build_agent_instructions() -> str:
         "5. When your supervisor shares an answer, thank the caller and relay it immediately (the system will provide the message).\n"
         "6. Never guess. Escalate whenever you are unsure or the caller requests a human.\n"
         "\n"
-        "Salon knowledge for quick reference:\n"
-        f"{knowledge_base.instructions_fragment()}\n"
+        f"{knowledge_section}"
         "\n"
         "Always confirm if the caller has additional questions before ending the conversation."
     )
@@ -448,6 +515,12 @@ class SalonReceptionistAgent(Agent):
 
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
+
+    try:
+        knowledge_limit = int(os.getenv("KNOWLEDGE_CACHE_LIMIT", "40"))
+    except ValueError:
+        knowledge_limit = 40
+    await preload_remote_knowledge(limit=knowledge_limit)
 
     userdata = SalonUserData()
 
