@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { HelpRequest, KnowledgeEntry } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 import { DashboardHeader, type DashboardView } from "./DashboardHeader";
 import { DashboardSidebar } from "./DashboardSidebar";
@@ -225,8 +226,10 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
     void refresh();
   }, [refresh]);
 
+  const isKnowledgeView = activeView === "learned" || activeView === "seed";
+
   return (
-    <div className="flex w-full max-w-screen flex-1 overflow-hidden rounded-2xl border border-border/60 bg-card/40 shadow-lg">
+    <div className="flex w-full max-w-screen flex-1 min-h-0 overflow-hidden rounded-2xl border border-border/60 bg-card/40 shadow-lg">
       <DashboardSidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -236,7 +239,7 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
         activeView={activeView}
       />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <DashboardHeader
           activeView={activeView}
           loading={loading}
@@ -244,10 +247,25 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
           onToggleSidebar={handleSidebarToggle}
         />
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 lg:px-10">
-          <div className="mx-auto w-full max-w-6xl space-y-6">
+        <div
+          className={cn(
+            "flex-1 px-6 py-6 lg:px-10",
+            isKnowledgeView ? "overflow-hidden" : "overflow-y-auto",
+          )}
+        >
+          <div
+            className={cn(
+              "mx-auto w-full max-w-6xl",
+              isKnowledgeView ? "flex h-full min-h-0 flex-col gap-6" : "space-y-6",
+            )}
+          >
             {error ? (
-              <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              <p
+                className={cn(
+                  "rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive",
+                  isKnowledgeView && "shrink-0",
+                )}
+              >
                 {error}
               </p>
             ) : null}
@@ -282,13 +300,14 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
             ) : null}
 
             {activeView === "learned" ? (
-              <section className="space-y-4">
-                <header>
+              <section className="flex min-h-0 flex-1 flex-col gap-4">
+                <header className="shrink-0">
                   <p className="text-sm text-muted-foreground">
                     Supervisor-approved responses saved to the knowledge base appear here.
                   </p>
                 </header>
                 <KnowledgePanel
+                  className="flex-1 basis-0"
                   entries={learnedEntries}
                   emptyLabel="No learned answers yet. Supervisor-approved replies will show up here."
                 />
@@ -296,13 +315,17 @@ export function Dashboard({ activeView = "pending" }: DashboardProps) {
             ) : null}
 
             {activeView === "seed" ? (
-              <section className="space-y-4">
-                <header>
+              <section className="flex min-h-0 flex-1 flex-col gap-4">
+                <header className="shrink-0">
                   <p className="text-sm text-muted-foreground">
                     The foundational answers provided to the agent before learning from calls.
                   </p>
                 </header>
-                <KnowledgePanel entries={seedEntries} emptyLabel="No seed entries found." />
+                <KnowledgePanel
+                  className="flex-1 basis-0"
+                  entries={seedEntries}
+                  emptyLabel="No seed entries found."
+                />
               </section>
             ) : null}
           </div>
