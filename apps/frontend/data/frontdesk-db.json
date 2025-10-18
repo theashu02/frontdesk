@@ -1,48 +1,105 @@
 {
-  "helpRequests": [],
   "knowledgeBase": [
     {
-      "id": "seed-hours",
-      "question": "What are your hours?",
-      "answer": "We're open 9 AM to 6 PM, Monday through Saturday.",
-      "createdAt": "2025-10-17T00:00:00.000Z",
-      "source": "seed",
+      "id": "hours",
+      "question": "What are your business hours?",
+      "answer": "Aurora Glow Salon is open Monday through Friday from 9am to 7pm, Saturday from 9am to 4pm, and closed on Sundays.",
       "tags": [
-        "hours",
-        "availability"
-      ]
+        "schedule",
+        "hours"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
     },
     {
-      "id": "seed-location",
-      "question": "Where are you located?",
-      "answer": "We're located at 123 Main Street, Suite 4, Springfield.",
-      "createdAt": "2025-10-17T00:00:00.000Z",
-      "source": "seed",
+      "id": "location",
+      "question": "Where is the salon located?",
+      "answer": "We are located at 123 Market Street, Denver, CO 80202. Validated parking is available in the Market Street Garage across the street.",
       "tags": [
         "location",
-        "directions"
-      ]
+        "parking"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
     },
     {
-      "id": "seed-services",
-      "question": "What services do you offer?",
-      "answer": "We offer haircuts, color services, blowouts, highlights, and bridal styling.",
-      "createdAt": "2025-10-17T00:00:00.000Z",
-      "source": "seed",
+      "id": "services",
+      "question": "What services do you provide?",
+      "answer": "Our menu includes signature haircuts, balayage color, restorative conditioning treatments, and the Glow & Go package (cut, gloss, and blowout).",
       "tags": [
         "services"
-      ]
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
     },
     {
-      "id": "seed-pricing",
-      "question": "How much are haircuts?",
-      "answer": "Standard haircuts start at $45 and include a shampoo and blow-dry.",
-      "createdAt": "2025-10-17T00:00:00.000Z",
-      "source": "seed",
+      "id": "pricing",
+      "question": "What are your prices like?",
+      "answer": "Haircuts start at $85, specialty color from $185, and the Glow & Go package is $230. Quotes are confirmed before each appointment begins.",
       "tags": [
-        "pricing",
-        "haircut"
-      ]
+        "pricing"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
+    },
+    {
+      "id": "cancellation",
+      "question": "What is the cancellation policy?",
+      "answer": "Please provide 24 hours notice to cancel or reschedule. Late cancellations or no-shows incur a $50 fee.",
+      "tags": [
+        "policies"
+      ],
+      "source": "seed",
+      "createdAt": "2025-10-15T12:00:00.000Z",
+      "updatedAt": "2025-10-15T12:00:00.000Z"
+    },
+    {
+      "id": "151f8500-ca38-4a8b-8618-57e5d09ba0ca",
+      "question": "What is your background name?",
+      "answer": "ashu",
+      "source": "supervisor",
+      "createdAt": "2025-10-17T20:54:05.199Z",
+      "updatedAt": "2025-10-17T20:54:05.199Z"
+    },
+    {
+      "id": "8a386545-f53a-44fc-b73f-c2c79012430f",
+      "question": "what is your barber name",
+      "answer": "barber name is omen atom",
+      "source": "supervisor",
+      "createdAt": "2025-10-17T21:47:55.879Z",
+      "updatedAt": "2025-10-17T21:47:55.879Z"
+    }
+  ],
+  "helpRequests": [
+    {
+      "id": "875eabae-8975-43db-a852-5c069da7c1ea",
+      "question": "What is your background name?",
+      "customerName": "Ashu",
+      "customerPhone": "Zero five one two",
+      "channel": "livekit",
+      "status": "resolved",
+      "createdAt": "2025-10-17T20:53:27.663Z",
+      "updatedAt": "2025-10-17T20:54:05.178Z",
+      "answer": "ashu",
+      "supervisorName": "omen",
+      "supervisorNotes": "#answer",
+      "resolvedAt": "2025-10-17T20:54:05.178Z"
+    },
+    {
+      "id": "90a3177b-1414-4a86-abbd-c8c2f1573ffb",
+      "question": "what is your barber name",
+      "channel": "livekit",
+      "status": "resolved",
+      "createdAt": "2025-10-17T21:46:59.735Z",
+      "updatedAt": "2025-10-17T21:47:55.863Z",
+      "answer": "barber name is omen atom",
+      "supervisorName": "simpl",
+      "resolvedAt": "2025-10-17T21:47:55.863Z",
+      "respondedAt": "2025-10-17T21:47:55.863Z"
     }
   ]
 }
